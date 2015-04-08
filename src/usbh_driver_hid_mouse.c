@@ -20,9 +20,8 @@
  *
  */
 
-#include "usbh_hubbed.h"
-#include "driver/usbh_device_driver.h"
 #include "usbh_driver_hid_mouse.h"
+#include "driver/usbh_device_driver.h"
 #include "usart_helpers.h"
 
 #include <libopencm3/usb/usbstd.h>
@@ -56,11 +55,14 @@ static const hid_mouse_config_t *mouse_config;
 
 #include <stdint.h>
 
-
+static bool initialized = false;
 
 void hid_mouse_driver_init(const hid_mouse_config_t *config)
 {
 	uint32_t i;
+
+	initialized = true;
+
 	mouse_config = config;
 	for (i = 0; i < USBH_HID_MOUSE_MAX_DEVICES; i++) {
 		mouse_device[i].state_next = STATE_INACTIVE;
@@ -73,6 +75,11 @@ void hid_mouse_driver_init(const hid_mouse_config_t *config)
  */
 static void *init(void *usbh_dev)
 {
+	if (!initialized) {
+		LOG_PRINTF("\r\n%s/%d : driver not initialized\r\n", __FILE__, __LINE__);
+		return 0;
+	}
+
 	uint32_t i;
 	hid_mouse_device_t *drvdata = 0;
 

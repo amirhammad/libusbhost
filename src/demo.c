@@ -26,6 +26,7 @@
 #include "usbh_driver_hid_mouse.h"	/// provides usb device driver Human Interface Device - type mouse
 #include "usbh_driver_hub.h"		/// provides usb full speed hub driver (Low speed devices on hub are not supported)
 #include "usbh_driver_gp_xbox.h"	/// provides usb device driver for Gamepad: Microsoft XBOX compatible Controller
+#include "usbh_driver_msc.h"		/// provides usb device driver for mass storage class devices
 
  // STM32f407 compatible
 #include <libopencm3/stm32/rcc.h>
@@ -117,6 +118,7 @@ static const usbh_dev_driver_t *device_drivers[] = {
 	&usbh_hub_driver,
 	&usbh_hid_mouse_driver,
 	&usbh_gp_xbox_driver,
+	&usbh_msc_driver,
 	0
 };
 
@@ -144,6 +146,12 @@ static const gp_xbox_config_t gp_xbox_config = {
 	.update = &gp_xbox_update,
 	.notify_connected = &gp_xbox_connected,
 	.notify_disconnected = &gp_xbox_disconnected
+};
+
+static const msc_config_t msc_config = {
+	.update = 0,
+	.notify_connected = 0,
+	.notify_disconnected = 0
 };
 
 static void mouse_in_message_handler(uint8_t device_id, const uint8_t *data)
@@ -180,6 +188,7 @@ int main(void)
 	hid_mouse_driver_init(&mouse_config);
 	hub_driver_init();
 	gp_xbox_driver_init(&gp_xbox_config);
+	msc_driver_init(&msc_config);
 
 	gpio_set(GPIOD,  GPIO13);
 
@@ -197,6 +206,8 @@ int main(void)
 
 	LOG_FLUSH();
 
+	static uint8_t data_buffer[2048];
+	bool read = false;
 	while (1) {
 		// set busy led
 		gpio_set(GPIOD,  GPIO14);
@@ -212,6 +223,12 @@ int main(void)
 
 		// approx 1ms interval between usbh_poll()
 		delay_ms_busy_loop(1);
+
+		if (msc_ready(0) && !read) {
+			read = true;
+			msc_read10(0, data_buffer, 4, 0);
+//			msc_read(0, 0, 10, 0);
+		}
 	}
 
 	return 0;

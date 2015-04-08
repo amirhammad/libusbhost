@@ -20,10 +20,10 @@
  *
  */
 
-
-#include "usart_helpers.h"
 #include "usbh_driver_gp_xbox.h"
 #include "driver/usbh_device_driver.h"
+#include "usart_helpers.h"
+
 
 #include <stdint.h>
 #include <libopencm3/usb/usbstd.h>
@@ -77,8 +77,8 @@ void gp_xbox_driver_init(const gp_xbox_config_t *config)
 static void *init(void *usbh_dev)
 {
 	if (!initialized) {
-		LOG_PRINTF("driver not initialized");
-		return false;
+		LOG_PRINTF("\r\n%s/%d : driver not initialized\r\n", __FILE__, __LINE__);
+		return 0;
 	}
 
 	uint32_t i;
