@@ -226,7 +226,7 @@ int main(void)
 
 		if (msc_ready(0) && !read) {
 			read = true;
-			msc_read10(0, data_buffer, 4, 0);
+			msc_read10(0, data_buffer, 1, 0);
 //			msc_read(0, 0, 10, 0);
 		}
 	}

@@ -52,7 +52,21 @@ enum STATES {
 
 	STATE_INQUIRY_REQUEST,
 	STATE_INQUIRY_COMPLETE,
+
+	STATE_TEST_UNIT_READY_REQUEST,
+	STATE_TEST_UNIT_READY_COMPLETE,
+
+	STATE_FIRST,
 };
+
+static const enum STATES enum_states[] = {
+	STATE_TEST_UNIT_READY_REQUEST,
+	STATE_INQUIRY_REQUEST,
+	STATE_MODE_SENSE_6_REQUEST,
+	STATE_READ_CAPACITY_REQUEST,
+	STATE_ACTIVE
+};
+
 enum STATES_TRANSACTION {
 	STATE_TRANSACTION_IDLE,
 
@@ -201,6 +215,7 @@ struct _msc_device {
 		enum STATES_TRANSACTION state_next;
 	} transaction;
 
+	int enumSeq;
 };
 typedef struct _msc_device msc_device_t;
 
@@ -230,6 +245,11 @@ bool msc_ready(uint8_t device_id)
 	return msc_device[device_id].state_next == STATE_ACTIVE;
 }
 
+static void update_state(msc_device_t *msc)
+{
+	msc->state_next = enum_states[msc->enumSeq++];
+}
+
 /**
  *
  *
@@ -249,12 +269,14 @@ static void *init(void *usbh_dev)
 		if (msc_device[i].state_next == STATE_INACTIVE) {
 			drvdata = &msc_device[i];
 			drvdata->device_id = i;
+//			drvdata->configuration_value = 0;
 			drvdata->endpoint_in_address = 0;
 			drvdata->endpoint_in_toggle = 0;
 			drvdata->endpoint_out_address = 0;
 			drvdata->endpoint_out_toggle = 0;
 			drvdata->transaction.state_next = STATE_TRANSACTION_IDLE;
 			drvdata->usbh_device = (usbh_device_t *)usbh_dev;
+			drvdata->enumSeq = 0;
 			break;
 		}
 	}
@@ -425,6 +447,10 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 						usbh_read(msc->usbh_device, &packet);
 						break;
 
+					case SCSI_TEST_UNIT_READY:
+						finish_transaction(msc);
+						break;
+
 					default:
 						ERROR_S("FAIL");
 						break;
@@ -591,7 +617,7 @@ static void event(usbh_device_t *dev, usbh_packet_callback_data_t cb_data)
 			switch (cb_data.status) {
 			case USBH_PACKET_CALLBACK_STATUS_OK:
 				LOG_PRINTF("\r\nMAXLUN= %d\r\n", msc->buffer[0]);
-				msc->state_next = STATE_READ_CAPACITY_REQUEST;
+				update_state(msc);
 
 				if (msc_config->notify_connected) {
 //					msc_config->notify_connected(msc->device_id);
@@ -607,20 +633,25 @@ static void event(usbh_device_t *dev, usbh_packet_callback_data_t cb_data)
 			}
 		}
 		break;
+
+	case STATE_TEST_UNIT_READY_COMPLETE:
+		update_state(msc);
+		break;
+
 	case STATE_READ_CAPACITY_COMPLETE:
-		msc->state_next = STATE_MODE_SENSE_6_REQUEST;
+		update_state(msc);
 		break;
 
 	case STATE_MODE_SENSE_6_COMPLETE:
-		msc->state_next = STATE_REQUEST_SENSE_REQUEST;
+		update_state(msc);
 		break;
 
 	case STATE_REQUEST_SENSE_COMPLETE:
-		msc->state_next = STATE_INQUIRY_REQUEST;
+		update_state(msc);
 		break;
 
 	case STATE_INQUIRY_COMPLETE:
-		msc->state_next = STATE_ACTIVE;
+		update_state(msc);
 		break;
 
 	case STATE_INACTIVE:
@@ -697,11 +728,11 @@ static void test_unit_ready(msc_device_t *msc)
 	struct _usb_msc_cbw cbw;
 
 	cbw.bmCBWFlags = 0x80; // Direction read
-	cbw.bCBWCBLength = 10;
-	memset(cbw.CBWCB, 0, 10);
+	cbw.bCBWCBLength = 6;
+	memset(cbw.CBWCB, 0, 16);
 	cbw.CBWCB[0] = SCSI_TEST_UNIT_READY;
 
-	msc->transaction.data_length = 8;
+	msc->transaction.data_length = 0;
 	cbw_send(msc, &cbw);
 }
 
@@ -778,6 +809,7 @@ static void poll(void *drvdata, uint32_t time_curr_us)
 
 	case STATE_GET_MAX_LUN_REQUEST:
 		{
+			LOG_PRINTF("GET_MAX_LUN\n");
 			struct usb_setup_data setup_data;
 			setup_data.bmRequestType = 0b10100001;
 			setup_data.bRequest = 254;
@@ -790,22 +822,32 @@ static void poll(void *drvdata, uint32_t time_curr_us)
 		}
 		break;
 
+	case STATE_TEST_UNIT_READY_REQUEST:
+		LOG_PRINTF("~~~ TEST_UNIT_READY\n");
+		msc->state_next = STATE_TEST_UNIT_READY_COMPLETE;
+		test_unit_ready(msc);
+		break;
+
 	case STATE_READ_CAPACITY_REQUEST:
+		LOG_PRINTF("~~~ READ_CAPACITY\n");
 		msc->state_next = STATE_READ_CAPACITY_COMPLETE;
 		read_capacity(msc);
 		break;
 
 	case STATE_MODE_SENSE_6_REQUEST:
+		LOG_PRINTF("~~~ MODE_SENSE_6\n");
 		msc->state_next = STATE_MODE_SENSE_6_COMPLETE;
 		mode_sense_6(msc);
 		break;
 
 	case STATE_REQUEST_SENSE_REQUEST:
+		LOG_PRINTF("~~~ REQUEST_SENSE\n");
 		msc->state_next = STATE_REQUEST_SENSE_COMPLETE;
 		request_sense(msc);
 		break;
 
 	case STATE_INQUIRY_REQUEST:
+		LOG_PRINTF("~~~ INQUIRY\n");
 		msc->state_next = STATE_INQUIRY_COMPLETE;
 		inquiry(msc);
 		break;
