@@ -45,6 +45,7 @@ void usart_interrupt(void);
 
 #ifdef USART_DEBUG
 #define LOG_PRINTF(format, ...) usart_printf(format, ##__VA_ARGS__);
+#define LOG_PRINTF_S(format, ...) do { usart_printf(format, ##__VA_ARGS__);usart_fifo_send();} while (0);
 #define LOG_FLUSH() usart_fifo_send()
 #else
 #define LOG_PRINTF(dummy, ...) ((void)dummy)

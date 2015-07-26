@@ -41,7 +41,7 @@
 #include <stdlib.h>
 
 
-static inline void delay_ms_busy_loop(uint32_t ms)
+ inline void delay_ms_busy_loop(uint32_t ms)
 {
 	volatile uint32_t i;
 	for (i = 0; i < 14903*ms; i++);
@@ -169,6 +169,9 @@ static const hid_mouse_config_t mouse_config = {
 
 int main(void)
 {
+	extern void camera_main();
+	camera_main();
+	return;
 	clock_setup();
 	gpio_setup();
 
