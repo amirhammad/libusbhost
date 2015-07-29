@@ -171,7 +171,7 @@ int main(void)
 {
 	extern void camera_main();
 	camera_main();
-	return;
+
 	clock_setup();
 	gpio_setup();
 
