@@ -20,9 +20,8 @@
  *
  */
 
-#include "usbh_hubbed.h"
-#include "driver/usbh_device_driver.h"
 #include "usbh_driver_hid_mouse.h"
+#include "driver/usbh_device_driver.h"
 #include "usart_helpers.h"
 
 #include <libopencm3/usb/usbstd.h>
@@ -77,7 +76,7 @@ void hid_mouse_driver_init(const hid_mouse_config_t *config)
 static void *init(void *usbh_dev)
 {
 	if (!initialized) {
-		LOG_PRINTF("\n%s/%d : driver not initialized\r\n", __FILE__, __LINE__);
+		LOG_PRINTF("\n%s/%d : driver not initialized\n", __FILE__, __LINE__);
 		return 0;
 	}
 

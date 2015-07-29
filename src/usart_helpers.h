@@ -50,6 +50,10 @@ void usart_interrupt(void);
 #define LOG_PRINTF(dummy, ...) ((void)dummy)
 #define LOG_FLUSH()
 #endif
+#define ERROR(arg) LOG_PRINTF("UNHANDLED_ERROR %d: file: %s, line: %d",\
+							arg, __FILE__, __LINE__)
+#define ERROR_S(arg) LOG_PRINTF("UNHANDLED ERROR_S '%s': file: '%s', line: %d",\
+							arg, __FILE__, __LINE__)
 
 END_DECLS
 
