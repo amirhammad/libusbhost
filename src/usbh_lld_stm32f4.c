@@ -185,7 +185,6 @@ static void stm32f4_usbh_port_channel_setup(
 				(epdir) |
 				(OTG_HCCHAR_EPNUM_MASK & (epnum << 11)) |
 				(OTG_HCCHAR_MPSIZ_MASK & max_packet_size);
-
 }
 
 
@@ -493,7 +492,7 @@ static enum USBH_POLL_STATUS poll_run(usbh_lld_stm32f4_driver_data_t *dev)
 		for(channel = 0; channel < dev->num_channels; channel++)
 		{
 			if (channels[channel].state != CHANNEL_STATE_WORK ||
-				!(REBASE(OTG_HAINT)&(1<<channel))) {
+				!(REBASE(OTG_HAINT)&(1 << channel))) {
 				continue;
 			}
 			uint32_t hcint = REBASE_CH(OTG_HCINT, channel);
@@ -506,8 +505,22 @@ static enum USBH_POLL_STATUS poll_run(usbh_lld_stm32f4_driver_data_t *dev)
 					REBASE_CH(OTG_HCINT, channel) = OTG_HCINT_NAK;
 					LOG_PRINTF("NAK");
 
-					REBASE_CH(OTG_HCCHAR, channel) |= OTG_HCCHAR_CHENA;
+					// Todo: what to do?
+//					REBASE_CH(OTG_HCCHAR, channel) |= OTG_HCCHAR_CHENA;
+					if (eptyp == USBH_ENDPOINT_TYPE_BULK) {
+//						volatile uint32_t *fifo = &REBASE_CH(OTG_FIFO, channel) + RX_FIFO_SIZE;
+						LOG_PRINTF(" HCTSIZ: %08X ", REBASE_CH(OTG_HCTSIZ, channel));
+						LOG_PRINTF(" HCCHAR: %08X ", REBASE_CH(OTG_HCCHAR, channel));
+						usbh_packet_callback_data_t cb_data;
+						cb_data.status = USBH_PACKET_CALLBACK_STATUS_EAGAIN;
+						cb_data.transferred_length = channels[channel].data_index;
 
+						channels[channel].packet.callback(
+							channels[channel].packet.callback_arg,
+							cb_data);
+					} else {
+						LOG_PRINTF("unhandled eptyp ");
+					}
 				}
 
 				if (hcint & OTG_HCINT_ACK) {
@@ -598,7 +611,6 @@ static enum USBH_POLL_STATUS poll_run(usbh_lld_stm32f4_driver_data_t *dev)
 					}
 
 					REBASE_CH(OTG_HCCHAR, channel) |= OTG_HCCHAR_CHENA;
-
 				}
 
 				if (hcint & OTG_HCINT_DTERR) {
@@ -613,8 +625,6 @@ static enum USBH_POLL_STATUS poll_run(usbh_lld_stm32f4_driver_data_t *dev)
 					channels[channel].packet.toggle[0] ^= 1;
 
 				}
-
-
 
 				if (hcint & OTG_HCINT_XFRC) {
 					REBASE_CH(OTG_HCINT, channel) = OTG_HCINT_XFRC;

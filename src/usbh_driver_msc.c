@@ -266,7 +266,7 @@ static void update_state(msc_device_t *msc)
 static void *init(void *usbh_dev)
 {
 	if (!initialized) {
-		LOG_PRINTF("\r\n%s/%d : driver not initialized\r\n", __FILE__, __LINE__);
+		LOG_PRINTF("\n%s/%d : driver not initialized\n", __FILE__, __LINE__);
 		return 0;
 	}
 
@@ -366,7 +366,7 @@ static void finish_transaction(msc_device_t *msc)
 	packet.callback_arg = msc->usbh_device;
 	packet.endpoint_size_max = msc->endpoint_in_maxpacketsize;
 	packet.endpoint_address = msc->endpoint_in_address;
-	packet.endpoint_type = USBH_EPTYP_BULK;
+	packet.endpoint_type = USBH_ENDPOINT_TYPE_BULK;
 	packet.data = msc->buffer;
 	packet.datalen = sizeof(struct _usb_msc_csw);
 
@@ -390,12 +390,12 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 					packet.speed = msc->usbh_device->speed;
 					packet.callback = transaction_event;
 					packet.callback_arg = msc->usbh_device;
-					packet.endpoint_type = USBH_EPTYP_BULK;
+					packet.endpoint_type = USBH_ENDPOINT_TYPE_BULK;
 
-					LOG_PRINTF("CBW succeed\r\n");
+					LOG_PRINTF("CBW succeed\n");
 					switch (msc->transaction.opcode) {
 					case SCSI_READ_10:
-						LOG_PRINTF("READ10 %d\r\n", msc->transaction.data_length);
+						LOG_PRINTF("READ10 %d\n", msc->transaction.data_length);
 
 						packet.toggle = &msc->endpoint_in_toggle;
 						packet.endpoint_size_max = msc->endpoint_in_maxpacketsize;
@@ -409,7 +409,7 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 						break;
 
 					case SCSI_WRITE_10:
-						LOG_PRINTF("WRITE10 %d\r\n", msc->transaction.data_length);
+						LOG_PRINTF("WRITE10 %d\n", msc->transaction.data_length);
 
 						packet.toggle = &msc->endpoint_out_toggle;
 						packet.endpoint_size_max = msc->endpoint_out_maxpacketsize;
@@ -492,45 +492,18 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 	case STATE_TRANSACTION_INQUIRY_COMPLETE:
 	case STATE_TRANSACTION_REQUEST_SENSE_COMPLETE:
 	case STATE_TRANSACTION_MODE_SENSE_6_COMPLETE:
+	case STATE_TRANSACTION_READ_10_COMPLETE:
+	case STATE_TRANSACTION_WRITE_10_COMPLETE:
 		switch (cb_data.status) {
 		case USBH_PACKET_CALLBACK_STATUS_OK:
 			finish_transaction(msc);
 			break;
 
 		default:
-			LOG_PRINTF("Trans length: %d\r\n", cb_data.transferred_length);
+			LOG_PRINTF("Trans length: %d\n", cb_data.transferred_length);
 			ERROR(cb_data.status);
 		}
 		break;
-
-	case STATE_TRANSACTION_READ_10_COMPLETE:
-		switch (cb_data.status) {
-		case USBH_PACKET_CALLBACK_STATUS_OK:
-			{
-				finish_transaction(msc);
-			}
-			break;
-
-		default:
-			LOG_PRINTF("Trans length: %d\r\n", cb_data.transferred_length);
-			ERROR(cb_data.status);
-		}
-		break;
-
-	case STATE_TRANSACTION_WRITE_10_COMPLETE:
-		switch (cb_data.status) {
-		case USBH_PACKET_CALLBACK_STATUS_OK:
-			{
-				finish_transaction(msc);
-			}
-			break;
-
-		default:
-			LOG_PRINTF("Trans length: %d\r\n", cb_data.transferred_length);
-			ERROR(cb_data.status);
-		}
-		break;
-
 
 	case STATE_TRANSACTION_READ_CAPACITY_COMPLETE:
 		switch (cb_data.status) {
@@ -546,10 +519,10 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 											| buf[2] << 8
 											| buf[1] << 16
 											| buf[0] << 24;
-				LOG_PRINTF("\r\n");
-				LOG_PRINTF("BLOCK COUNT = %5u\r\n", msc->properties.block_count);
-				LOG_PRINTF("BLOCK SIZE =  %5u\r\n", msc->properties.block_size);
-				LOG_PRINTF("CAPACITY = %llu bytes\r\n", msc->properties.block_count*(uint64_t)msc->properties.block_size);
+				LOG_PRINTF("\n");
+				LOG_PRINTF("BLOCK COUNT = %5u\n", msc->properties.block_count);
+				LOG_PRINTF("BLOCK SIZE =  %5u\n", msc->properties.block_size);
+				LOG_PRINTF("CAPACITY = %llu bytes\n", msc->properties.block_count*(uint64_t)msc->properties.block_size);
 
 				finish_transaction(msc);
 			}
@@ -565,8 +538,8 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 		case USBH_PACKET_CALLBACK_STATUS_OK:
 			{
 				struct _usb_msc_csw *csw = (struct _usb_msc_csw *)msc->buffer;
-				LOG_PRINTF("\r\n CSW: ");
-				LOG_PRINTF("CSW status=%d\r\n", csw->bCSWStatus);
+				LOG_PRINTF("\n CSW: ");
+				LOG_PRINTF("CSW status=%d\n", csw->bCSWStatus);
 				msc->transaction.state_next = STATE_TRANSACTION_IDLE;
 				event(dev, cb_data);
 			}
@@ -578,7 +551,7 @@ static void transaction_event(usbh_device_t *dev, usbh_packet_callback_data_t cb
 		break;
 
 	case STATE_TRANSACTION_IDLE:
-		ERROR_S("Epic fail, callback called in idle state\r\n");
+		ERROR_S("Epic fail, callback called in idle state\n");
 		break;
 	}
 
@@ -610,7 +583,7 @@ static void event(usbh_device_t *dev, usbh_packet_callback_data_t cb_data)
 		{
 			switch (cb_data.status) {
 			case USBH_PACKET_CALLBACK_STATUS_OK:
-				LOG_PRINTF("\r\nmsc CONFIGURED\r\n");
+				LOG_PRINTF("\nmsc CONFIGURED\n");
 				msc->state_next = STATE_GET_MAX_LUN_REQUEST;
 
 				if (msc_config->notify_connected) {
@@ -651,7 +624,7 @@ static void event(usbh_device_t *dev, usbh_packet_callback_data_t cb_data)
 		{
 			switch (cb_data.status) {
 			case USBH_PACKET_CALLBACK_STATUS_OK:
-				LOG_PRINTF("\r\nMAXLUN= %d\r\n", msc->buffer[0]);
+				LOG_PRINTF("\nMAXLUN= %d\n", msc->buffer[0]);
 				update_state(msc);
 
 				if (msc_config->notify_connected) {
@@ -714,7 +687,7 @@ static void event(usbh_device_t *dev, usbh_packet_callback_data_t cb_data)
 
 	default:
 		{
-			LOG_PRINTF("Unknown state\r\n");
+			LOG_PRINTF("Unknown state\n");
 		}
 		break;
 	}
@@ -726,7 +699,7 @@ static void cbw_send(msc_device_t *msc,
 	static uint32_t tag = 0;
 	tag++;
 	cbw->dCBWSignature = CBW_SIGNATURE; // CONSTANT
-	cbw->dCBWTag = tag; // CONSTANT We do not use tags
+	cbw->dCBWTag = tag;
 	cbw->bCBWLUN = 0; // CONSTANT We do not use other LUN than 0
 	cbw->dCBWDataTransferLength = msc->transaction.data_length;// Data length
 
@@ -738,7 +711,7 @@ static void cbw_send(msc_device_t *msc,
 	packet.callback_arg = msc->usbh_device;
 	packet.endpoint_size_max = msc->endpoint_out_maxpacketsize;
 	packet.endpoint_address = msc->endpoint_out_address;
-	packet.endpoint_type = USBH_EPTYP_BULK;
+	packet.endpoint_type = USBH_ENDPOINT_TYPE_BULK;
 	packet.data = cbw;
 	packet.datalen = sizeof(*cbw);
 
@@ -855,7 +828,7 @@ static void poll(void *drvdata, uint32_t time_curr_us)
 
 			msc->state_next = STATE_SET_CONFIGURATION_EMPTY_READ;
 
-			device_xfer_control_write(&setup_data, sizeof(setup_data), event, dev);
+			device_xfer_control_write_setup(&setup_data, sizeof(setup_data), event, dev);
 		}
 		break;
 
@@ -870,7 +843,7 @@ static void poll(void *drvdata, uint32_t time_curr_us)
 			setup_data.wLength = 1;
 
 			msc->state_next = STATE_GET_MAX_LUN_READ;
-			device_xfer_control_write(&setup_data, sizeof(setup_data), event, dev);
+			device_xfer_control_write_setup(&setup_data, sizeof(setup_data), event, dev);
 		}
 		break;
 
@@ -914,7 +887,7 @@ static void poll(void *drvdata, uint32_t time_curr_us)
 
 static void remove(void *drvdata)
 {
-	LOG_PRINTF("Removing msc\r\n");
+	LOG_PRINTF("Removing msc\n");
 
 	msc_device_t *msc = (msc_device_t *)drvdata;
 	if (msc_config->notify_disconnected) {

@@ -1,7 +1,7 @@
 #ifndef USBH_DRIVER_MSC_H_
 #define USBH_DRIVER_MSC_H_
 
-#include "usbh_hubbed.h"
+#include "usbh_core.h"
 
 #include <stdint.h>
 #include <stdlib.h>

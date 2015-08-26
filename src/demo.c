@@ -28,6 +28,8 @@
 #include "usbh_driver_gp_xbox.h"	/// provides usb device driver for Gamepad: Microsoft XBOX compatible Controller
 #include "usbh_driver_ac_midi.h"	/// provides usb device driver for midi class devices
 #include "usbh_driver_msc.h"		/// provides usb device driver for mass storage class devices
+#include "msc.h"
+#include "ff.h"
 
  // STM32f407 compatible
 #include <libopencm3/stm32/rcc.h>
@@ -79,7 +81,7 @@ static void tim6_setup(void)
 	timer_enable_counter(TIM6);
 }
 
-static uint32_t tim6_get_time_us(void)
+uint32_t tim6_get_time_us(void)
 {
 	uint32_t cnt = timer_get_counter(TIM6);
 
@@ -144,6 +146,11 @@ static void gp_xbox_disconnected(uint8_t device_id)
 	LOG_PRINTF("disconnected %d", device_id);
 }
 
+//static void msc_connected_handler(uint8_t device_id)
+//{
+//	fat_msc_device_init(device_id);
+//}
+
 static const gp_xbox_config_t gp_xbox_config = {
 	.update = &gp_xbox_update,
 	.notify_connected = &gp_xbox_connected,
@@ -163,11 +170,6 @@ static void mouse_in_message_handler(uint8_t device_id, const uint8_t *data)
 	// print only first 4 bytes, since every mouse should have at least these four set.
 	// Report descriptors are not read by driver for now, so we do not know what each byte means
 	LOG_PRINTF("MOUSE EVENT %02X %02X %02X %02X \n", data[0], data[1], data[2], data[3]);
-}
-
-static void msc_handler(int arg)
-{
-	LOG_PRINTF("ARG: %d\n", arg);
 }
 
 static const hid_mouse_config_t mouse_config = {
@@ -218,6 +220,7 @@ int main(void)
 	gp_xbox_driver_init(&gp_xbox_config);
 	midi_driver_init(&midi_config);
 	msc_driver_init(&msc_config);
+	fat_msc_init();
 
 	gpio_set(GPIOD,  GPIO13);
 
@@ -240,8 +243,7 @@ int main(void)
 
 	LOG_FLUSH();
 
-	static uint8_t data_buffer[2048];
-	bool read = false;
+	bool done = false;
 	while (1) {
 		// set busy led
 		gpio_set(GPIOD,  GPIO14);
@@ -254,14 +256,30 @@ int main(void)
 		gpio_clear(GPIOD,  GPIO14);
 
 		LOG_FLUSH();
+		if (msc_idle(0) && time_curr_us > 3000000 && !done) {
+			FATFS fs;
+			LOG_PRINTF("mount: %d\n", f_mount(&fs, "0:", 1));
+			FIL fd;
+			LOG_PRINTF("F_open: %d\n", f_open(&fd, "0:/X.txt", FA_READ));
+			LOG_FLUSH();
+			unsigned int c = 0;
+			char buff[100];
+			LOG_PRINTF("%d\n", fd.fsize);
+			LOG_PRINTF("f_read: %d\n", f_read(&fd, buff, 100, &c));
+			if (c < sizeof(buff)) {
+				buff[c] = 0;
+			}
+			LOG_PRINTF("%d %s\n", c, buff);
+//			LOG_PRINTF("f_write: %d\n", f_write(&fd, "Ok", 3, &c));
+			f_close(&fd);
 
+			done = true;
+			LOG_PRINTF("END\n");
+			LOG_FLUSH();
+			while(1);
+		}
 		// approx 1ms interval between usbh_poll()
 		delay_ms_busy_loop(1);
-
-		if (msc_idle(0) && !read) {
-			read = true;
-			msc_read10(0, data_buffer, 1, 0, msc_handler, 5);
-		}
 	}
 
 	return 0;
