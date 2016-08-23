@@ -28,7 +28,7 @@ Currently supported devices (yet tested) are:
 Native device drivers (mostly for demonstration purposes):
 - HUB
 - Gamepad - XBox compatible Controller
-- mouse (draft: only displays raw data)
+- Generic Human Interface driver: mouse, keyboard (WIP)
 - USB MIDI devices (raw data + note on/off)
 
 ###Practical info
