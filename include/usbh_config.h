@@ -54,6 +54,10 @@
 
 #define USBH_GP_XBOX_BUFFER		(32)
 
+// MSC
+#define USBH_MSC_MAX_DEVICES	(2)
+#define USBH_MSC_BUFFER			(512)
+
 /* Sanity checks */
 #if (USBH_MAX_DEVICES > 127)
 #error USBH_MAX_DEVICES > 127

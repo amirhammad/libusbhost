@@ -27,6 +27,7 @@
 #include "usbh_driver_hub.h"		/// provides usb full speed hub driver (Low speed devices on hub are not supported)
 #include "usbh_driver_gp_xbox.h"	/// provides usb device driver for Gamepad: Microsoft XBOX compatible Controller
 #include "usbh_driver_ac_midi.h"	/// provides usb device driver for midi class devices
+#include "usbh_driver_msc.h"		/// provides usb device driver for mass storage class devices
 
  // STM32f407 compatible
 #include <libopencm3/stm32/rcc.h>
@@ -119,6 +120,7 @@ static const usbh_dev_driver_t *device_drivers[] = {
 	&usbh_hid_mouse_driver,
 	&usbh_gp_xbox_driver,
 	&usbh_midi_driver,
+	&usbh_msc_driver,
 	0
 };
 
@@ -148,6 +150,12 @@ static const gp_xbox_config_t gp_xbox_config = {
 	.notify_disconnected = &gp_xbox_disconnected
 };
 
+static const msc_config_t msc_config = {
+	.update = 0,
+	.notify_connected = 0,
+	.notify_disconnected = 0
+};
+
 static void mouse_in_message_handler(uint8_t device_id, const uint8_t *data)
 {
 	(void)device_id;
@@ -155,6 +163,11 @@ static void mouse_in_message_handler(uint8_t device_id, const uint8_t *data)
 	// print only first 4 bytes, since every mouse should have at least these four set.
 	// Report descriptors are not read by driver for now, so we do not know what each byte means
 	LOG_PRINTF("MOUSE EVENT %02X %02X %02X %02X \n", data[0], data[1], data[2], data[3]);
+}
+
+static void msc_handler(int arg)
+{
+	LOG_PRINTF("ARG: %d\n", arg);
 }
 
 static const hid_mouse_config_t mouse_config = {
@@ -204,6 +217,7 @@ int main(void)
 	hub_driver_init();
 	gp_xbox_driver_init(&gp_xbox_config);
 	midi_driver_init(&midi_config);
+	msc_driver_init(&msc_config);
 
 	gpio_set(GPIOD,  GPIO13);
 
@@ -226,6 +240,8 @@ int main(void)
 
 	LOG_FLUSH();
 
+	static uint8_t data_buffer[2048];
+	bool read = false;
 	while (1) {
 		// set busy led
 		gpio_set(GPIOD,  GPIO14);
@@ -241,6 +257,11 @@ int main(void)
 
 		// approx 1ms interval between usbh_poll()
 		delay_ms_busy_loop(1);
+
+		if (msc_idle(0) && !read) {
+			read = true;
+			msc_read10(0, data_buffer, 1, 0, msc_handler, 5);
+		}
 	}
 
 	return 0;
