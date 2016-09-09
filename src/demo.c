@@ -27,6 +27,7 @@
 #include "usbh_driver_hub.h"		/// provides usb full speed hub driver (Low speed devices on hub are not supported)
 #include "usbh_driver_gp_xbox.h"	/// provides usb device driver for Gamepad: Microsoft XBOX compatible Controller
 #include "usbh_driver_ac_midi.h"	/// provides usb device driver for midi class devices
+#include "usbh_driver_msc.h"		/// provides usb device driver for mass storage class devices
 
  // STM32f407 compatible
 #include <libopencm3/stm32/rcc.h>
@@ -119,6 +120,7 @@ static const usbh_dev_driver_t *device_drivers[] = {
 	&usbh_hid_driver,
 	&usbh_gp_xbox_driver,
 	&usbh_midi_driver,
+	&usbh_msc_driver,
 	NULL
 };
 
@@ -184,6 +186,34 @@ static const hid_config_t hid_config = {
 	.hid_in_message_handler = &hid_in_message_handler
 };
 
+static void msc_read_handler(void* data_buffer)
+{
+	uint8_t *buffer = (uint8_t *)data_buffer;
+	LOG_PRINTF("MSC: Read handler: %02x\n", buffer[0]);
+}
+
+static void msc_write_handler(void *data_buffer)
+{
+	uint8_t *buffer = (uint8_t *)data_buffer;
+	LOG_PRINTF("MSC: Write handler: %02x\n", buffer[0]);
+}
+
+static bool msc_read_complete = false;
+static bool msc_write_complete = false;
+
+// assume only one msc connected
+static void msc_connected_handler(uint8_t device_id)
+{
+	(void)device_id;
+	msc_read_complete = false;
+	msc_write_complete = false;
+}
+
+static const msc_config_t msc_config = {
+	.notify_connected = msc_connected_handler
+};
+
+
 static void midi_in_message_handler(int device_id, uint8_t *data)
 {
 	(void)device_id;
@@ -227,6 +257,7 @@ int main(void)
 	hub_driver_init();
 	gp_xbox_driver_init(&gp_xbox_config);
 	midi_driver_init(&midi_config);
+	msc_driver_init(&msc_config);
 
 	gpio_set(GPIOD,  GPIO13);
 	/**
@@ -243,6 +274,8 @@ int main(void)
 
 	LOG_FLUSH();
 
+	static uint8_t data_buffer[4096];
+
 	while (1) {
 		// set busy led
 		gpio_set(GPIOD,  GPIO14);
@@ -258,6 +291,16 @@ int main(void)
 
 		// approx 1ms interval between usbh_poll()
 		delay_ms_busy_loop(1);
+
+		if (msc_idle(0) && !msc_read_complete) {
+			msc_read_complete = true;
+			msc_read10(0, data_buffer, 1, 0, msc_read_handler, data_buffer);
+		}
+
+		if (msc_idle(0) && msc_read_complete && !msc_write_complete) {
+			msc_write_complete = true;
+			msc_write10(0, data_buffer, 1, 0, msc_write_handler, data_buffer);
+		}
 	}
 
 	return 0;

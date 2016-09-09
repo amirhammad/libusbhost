@@ -13,6 +13,7 @@ add_library (usbhost
 	${USART_HELPERS}
 	${inc}/usbh_core.h
 	${inc}/usbh_driver_ac_midi.h
+	${inc}/usbh_driver_msc.h
 	${inc}/usbh_driver_gp_xbox.h
 	${inc}/usbh_driver_hid.h
 	${inc}/usbh_driver_hub.h
@@ -21,6 +22,7 @@ add_library (usbhost
 
 	usbh_core.c
 	usbh_driver_ac_midi.c
+	usbh_driver_msc.c
 	usbh_driver_ac_midi_private.h
 	usbh_driver_gp_xbox.c
 	usbh_driver_hid.c
