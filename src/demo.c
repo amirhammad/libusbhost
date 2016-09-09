@@ -27,6 +27,7 @@
 #include "usbh_driver_hub.h"		/// provides usb full speed hub driver (Low speed devices on hub are not supported)
 #include "usbh_driver_gp_xbox.h"	/// provides usb device driver for Gamepad: Microsoft XBOX compatible Controller
 #include "usbh_driver_ac_midi.h"	/// provides usb device driver for midi class devices
+#include "usbh_driver_cdc.h"		/// !COMMENT!
 
  // STM32f407 compatible
 #include <libopencm3/stm32/rcc.h>
@@ -119,6 +120,7 @@ static const usbh_dev_driver_t *device_drivers[] = {
 	&usbh_hid_driver,
 	&usbh_gp_xbox_driver,
 	&usbh_midi_driver,
+	&usbh_cdc_driver,
 	NULL
 };
 
@@ -223,6 +225,7 @@ int main(void)
 	 *
 	 * Pass configuration struct where the callbacks are defined
 	 */
+	cdc_driver_init();
 	hid_driver_init(&hid_config);
 	hub_driver_init();
 	gp_xbox_driver_init(&gp_xbox_config);
